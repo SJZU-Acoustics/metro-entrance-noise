@@ -38,7 +38,7 @@ pa <- ggplot(shr, aes(share, source, fill = source)) +
   scale_fill_manual(values = SOURCE_COLS, guide = "none") +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1),
                      breaks = seq(0, 1, 0.25), limits = c(0, 1)) +
-  labs(x = "Share of observed sound events", y = NULL) +
+  labs(x = "Share of hours by dominant source", y = NULL) +
   theme_pub(BS, AT)
 
 # ---- Panels b, c: share vs LAeq_24h ------------------------------------------
