@@ -1,31 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-33_sound_event_validation.py
-
-Independently recompute the manual-validation metrics for the automated
-sound-event classifier (Paper 1 Methods), from the per-clip
-validation table data/validation/sound_event_validation_clips.csv
-
-Reference standard = majority vote of three blind annotators (A, B, C);
-blanks treated as 'unknown'; a clip with no >=2 agreement is excluded from
-that metric (the first author's protocol, docx D.3).
-
-Two resolutions are computed:
-  (1) 12-category event code  -> verifies the first author's reported numbers
-  (2) 4 source groups (traffic / human / natural / mechanical)
-      -> the directly paper-relevant reliability (station-level source shares
-         are built from the 4 groups, so within-group confusions are not errors)
-
-For dominant and secondary source, overall and for the night subsample, we
-report N (valid-majority clips), accuracy, Cohen's kappa, the model 'unknown'
-share, and per-group precision/recall/F1 (4-group, dominant).
-
-Outputs (exploration/output/):
-  33_sound_event_validation__summary.csv      headline metrics
-  33_sound_event_validation__perclass.csv     4-group per-class P/R/F1 (dominant)
-  33_sound_event_validation__confusion.csv    4-group confusion (dominant, overall)
-Plus a human-readable brief: exploration/scripts/../reports? -> printed to stdout
+"""Recompute clip-level accuracy and agreement from anonymous listener labels.
+Uses majority vote separately for each task and resolution; clips without a
+valid majority are excluded from that comparison only.
 """
 import os
 from collections import Counter
@@ -34,11 +11,11 @@ from sklearn.metrics import (accuracy_score, cohen_kappa_score,
 import csv
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repository root
-CLIPS_CSV = os.path.join(ROOT, "data", "validation", "sound_event_validation_clips.csv")
+CLIPS_CSV = os.path.join(ROOT, "intermediate", "validation_clips.csv")
 OUTDIR = os.path.join(ROOT, "intermediate", "analysis")
 os.makedirs(OUTDIR, exist_ok=True)
 
-# 12-category code -> 4 source group (from docx D.1 / main.tex Methods)
+# 12-category code -> 4 source group (see the workbook Event_categories sheet)
 CODE2GROUP = {
     1: "natural", 2: "natural",                    # birdsong, insect
     3: "traffic", 4: "traffic", 5: "traffic",      # car pass-by, horn, motorcycle
@@ -92,8 +69,7 @@ for r in rows:
         continue
     clips.append({
         "clip_id": r[idx["clip_id"]],
-        "station": str(r[idx["source_audio_file"]]).split("_")[0] + "_" +
-                   str(r[idx["source_audio_file"]]).split("_")[1],
+        "station": r[idx["station_key"]],
         "day_night": (r[idx["day_night"]] or "").strip(),
         "m_pri": norm_code(r[idx["model_primary_event_code"]]),
         "a_pri": norm_code(r[idx["A_primary_event"]]),

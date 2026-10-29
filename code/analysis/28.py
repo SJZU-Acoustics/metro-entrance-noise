@@ -1,23 +1,6 @@
-"""28_source_spatial_confounding.py
-
-Robustness analysis: does the source-composition signal survive spatial
-adjustment?
-
-The headline finding is that traffic share raises and natural share lowers
-station noise. Acoustic outcomes are spatially clustered (global Moran's I
-~0.20-0.25 in analysis 12), and the spatial models in analysis 12 only used
-built-environment predictors. This script re-estimates the source -> noise
-association while accounting for spatial structure, using:
-
-  1. OLS with source predictors (statsmodels), with residual Moran's I.
-  2. A spatial trend-surface OLS that adds a quadratic lng/lat surface.
-  3. Spatial-lag (SAR / ML_Lag) and spatial-error (SEM / ML_Error) models
-     with the same source predictors, using KNN(k=8) weights to match
-     analysis 12.
-
-If the traffic and natural coefficients stay in the same direction and remain
-significant across these specifications, the source signal is not merely a
-by-product of spatial clustering.
+"""Fit descriptive source/level associations with spatial adjustment.
+Uses OLS, a quadratic spatial trend, spatial lag and spatial error models
+with eight-nearest-neighbour weights. Source labels and levels share recordings.
 """
 
 from __future__ import annotations

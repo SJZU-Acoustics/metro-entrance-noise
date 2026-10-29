@@ -1,8 +1,6 @@
+data/*.xlsx
 intermediate/
 output/
-data/*.xlsx
-data/validation/*.csv
+verification/
 __pycache__/
 .DS_Store
-.Rhistory
-.RData

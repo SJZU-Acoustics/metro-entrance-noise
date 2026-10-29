@@ -1,0 +1,12 @@
+suppressPackageStartupMessages(library(tidyverse))
+m <- read_csv("intermediate/clean/station_master.csv", show_col_types=FALSE)
+n <- read_csv("intermediate/clean/noise_metrics_station.csv", show_col_types=FALSE)
+m <- m %>% rename(road = `100m_urban_arterial_road_density_m_m`, ndvi = `500_ndvi`)
+d <- inner_join(m,n,by="station_key") %>% filter(is.finite(laeq_24h_leq_db_a))
+controls <- list(none=character(), laeq="laeq_24h_leq_db_a", lnight="lnight_leq_db_a", laeq_plus_other=c("laeq_24h_leq_db_a","road"), lnight_plus_other=c("lnight_leq_db_a","road"))
+x <- map_dfr(names(controls), function(k) {
+ z <- controls[[k]]; a <- as.data.frame(lapply(d[,c("ndvi","sound_natural_share",z)],rank))
+ if(length(z)) {rx<-resid(lm(reformulate(z,response="ndvi"),a));ry<-resid(lm(reformulate(z,response="sound_natural_share"),a));v<-cor(rx,ry)} else v<-cor(a[[1]],a[[2]])
+ tibble(subset="all_109",predictor="ndvi_500",outcome="sound_natural_share",control=k,rho=v)
+})
+write_csv(x,"intermediate/analysis/29_beyond_loudness_partial.csv")

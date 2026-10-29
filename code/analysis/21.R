@@ -179,7 +179,7 @@ performance <- list()
 fold_records <- list()
 
 for (outcome in outcomes) {
-  terms <- model_terms(outcome)
+  terms <- model_terms(outcome)[c("intercept_only", "environment", "source", "environment_source")]
   needed <- unique(unlist(str_extract_all(paste(terms, collapse = " + "), "`[^`]+`|[A-Za-z0-9_]+")))
   needed <- str_remove_all(needed, "`")
   needed <- setdiff(needed, c("1"))
@@ -215,78 +215,3 @@ perf <- bind_rows(performance) %>%
   relocate(outcome, outcome_label, model)
 folds_out <- bind_rows(fold_records)
 write_csv(perf, file.path(out_dir, "21_domain_cv__model_performance.csv"))
-write_csv(folds_out, file.path(out_dir, "21_domain_cv__fold_rmse.csv"))
-
-# Paired comparison across the 100 repeats: per repeat, the mean RMSE over the
-# five folds for each model; count the repeats in which the source-only model
-# has the lower error than each rival model.
-rep_means <- folds_out %>%
-  group_by(outcome, model, rep_id) %>%
-  summarise(rmse = mean(rmse), .groups = "drop")
-paired <- rep_means %>%
-  filter(model != "source") %>%
-  left_join(rep_means %>% filter(model == "source") %>% select(outcome, rep_id, source_rmse = rmse),
-            by = c("outcome", "rep_id")) %>%
-  group_by(outcome, model) %>%
-  summarise(
-    n_repeats = n(),
-    source_wins = sum(source_rmse < rmse),
-    mean_diff_vs_source = mean(rmse - source_rmse),
-    .groups = "drop"
-  ) %>%
-  mutate(outcome_label = outcome_labels[outcome]) %>%
-  relocate(outcome, outcome_label, model)
-write_csv(paired, file.path(out_dir, "21_domain_cv__paired_wins.csv"))
-
-gain <- perf %>%
-  select(outcome, outcome_label, model, cv_rmse_mean, adj_r2) %>%
-  group_by(outcome) %>%
-  mutate(
-    null_cv_rmse = cv_rmse_mean[model == "intercept_only"][1],
-    controls_cv_rmse = cv_rmse_mean[model == "controls"][1],
-    cv_rmse_gain_vs_null = null_cv_rmse - cv_rmse_mean,
-    cv_rmse_gain_vs_controls = controls_cv_rmse - cv_rmse_mean,
-    best_model = model[which.min(cv_rmse_mean)][1],
-    rank_cv = rank(cv_rmse_mean, ties.method = "first")
-  ) %>%
-  ungroup()
-write_csv(gain, file.path(out_dir, "21_domain_cv__model_gain.csv"))
-
-summary_tbl <- gain %>%
-  filter(rank_cv == 1) %>%
-  count(best_model, name = "n_outcomes_best") %>%
-  arrange(desc(n_outcomes_best))
-write_csv(summary_tbl, file.path(out_dir, "21_domain_cv__summary.csv"))
-
-model_levels <- c("intercept_only", "controls", "activity", "environment", "source", "environment_source", "exposure_domains", "all_domains_controls")
-model_labels <- c(
-  intercept_only = "Intercept only",
-  controls = "Controls",
-  activity = "Activity",
-  environment = "Environment",
-  source = "Sources",
-  environment_source = "Env + sources",
-  exposure_domains = "Activity + env + sources",
-  all_domains_controls = "All + controls"
-)
-
-p_perf <- perf %>%
-  mutate(
-    model = factor(model, levels = model_levels),
-    model_label = recode(as.character(model), !!!model_labels),
-    model_label = factor(model_label, levels = model_labels),
-    outcome_label = factor(outcome_label, levels = outcome_labels[outcomes])
-  ) %>%
-  ggplot(aes(model_label, cv_rmse_mean, colour = outcome_label, group = outcome_label)) +
-  geom_line(linewidth = 0.45) +
-  geom_point(size = 1.4) +
-  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73", "#E69F00", "#CC79A7")) +
-  labs(x = NULL, y = "Repeated 5-fold CV RMSE (dB)") +
-  theme_pub(base_size = 8, axis_title_size = 9) +
-  theme(
-    axis.text.x = element_text(angle = 35, hjust = 1),
-    legend.position = "top"
-  )
-ggsave(file.path(out_dir, "21_domain_cv__model_performance.png"), p_perf, width = 178 / 25.4, height = 105 / 25.4, dpi = 600, bg = "white")
-
-message("Completed domain CV models.")
